@@ -6,6 +6,11 @@ const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
 
+// Hot Reloading (Development only)
+try {
+  require('electron-reloader')(module);
+} catch (_) {}
+
 // Data file lives in the user's home directory / expense-diary
 const DATA_DIR  = path.join(os.homedir(), 'expense-diary-data');
 const DATA_FILE = path.join(DATA_DIR, 'expenses.json');
@@ -45,10 +50,10 @@ app.on('window-all-closed', () => {
 });
 
 // ── IPC: Read data ────────────────────────────────────────
-ipcMain.handle('load-data', () => {
+ipcMain.handle('load-data', async () => {
   try {
     if (!fs.existsSync(DATA_FILE)) return { expenses: [], nextId: 1 };
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const raw = await fs.promises.readFile(DATA_FILE, 'utf8');
     return JSON.parse(raw);
   } catch (e) {
     return { expenses: [], nextId: 1 };
@@ -56,9 +61,9 @@ ipcMain.handle('load-data', () => {
 });
 
 // ── IPC: Write data ───────────────────────────────────────
-ipcMain.handle('save-data', (_event, data) => {
+ipcMain.handle('save-data', async (_event, data) => {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+    await fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
@@ -74,7 +79,7 @@ ipcMain.handle('export-csv', async (_event, csvString) => {
   });
   if (canceled || !filePath) return { ok: false };
   try {
-    fs.writeFileSync(filePath, csvString, 'utf8');
+    await fs.promises.writeFile(filePath, csvString, 'utf8');
     return { ok: true, filePath };
   } catch (e) {
     return { ok: false, error: e.message };
